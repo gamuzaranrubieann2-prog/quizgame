@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quiz and games</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#E8F1FF;--card:#fff;--ink:#0F1B3D;--muted:#566184;--line:#CBD8F2;--a:#E8337A;--a-ink:#fff;--y:#FFC93C;--ok:#1F9D63;--okbg:#D8F3E5;--bad:#C93030;--badbg:#FCE0E0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0D1430;--card:#16204A;--ink:#EEF2FF;--muted:#A3AED6;--line:#2B3768;--a:#FF5C97;--a-ink:#1B0613;--ok:#5BE39B;--okbg:#14382B;--bad:#FF8383;--badbg:#401A1F}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0D1430;--card:#16204A;--ink:#EEF2FF;--muted:#A3AED6;--line:#2B3768;--a:#FF5C97;--a-ink:#1B0613;--ok:#5BE39B;--okbg:#14382B;--bad:#FF8383;--badbg:#401A1F}
+*{box-sizing:border-box}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.45 Fredoka,ui-rounded,system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:20px 16px 48px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+h1{font-size:2rem;font-weight:600;margin:0 0 14px}
+h2{font-size:1.35rem;font-weight:500;margin:0 0 14px;line-height:1.3}
+.tabs{display:flex;gap:6px;margin-bottom:16px}
+.tabs button{flex:1;border:2px solid var(--line);background:var(--card);border-radius:12px;padding:10px;cursor:pointer;font-weight:500}
+.tabs button[aria-pressed="true"]{background:var(--y);border-color:var(--y);color:#2A2000}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px}
+.meta{display:flex;justify-content:space-between;color:var(--muted);font-size:.9rem;margin-bottom:10px}
+.prog{height:8px;background:var(--line);border-radius:6px;margin-bottom:16px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--a)}
+.opt{display:block;width:100%;text-align:left;background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer}
+.opt:disabled{cursor:default;color:inherit}
+.opt.ok{background:var(--okbg);border-color:var(--ok)}
+.opt.bad{background:var(--badbg);border-color:var(--bad)}
+.go{background:var(--a);color:var(--a-ink);border:0;border-radius:12px;padding:12px 18px;font-weight:600;cursor:pointer;margin-top:6px}
+.score{font-size:3rem;font-weight:600;line-height:1.1;margin:4px 0}
+.fb{min-height:1.5em;margin:4px 0 0;font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cell{aspect-ratio:1;border:2px solid var(--line);border-radius:14px;background:var(--a);color:transparent;font-size:2rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cell.up{background:var(--card);color:inherit}
+.cell.done{background:var(--okbg);border-color:var(--ok);color:inherit;cursor:default}
+.msg{margin:14px 0 0;font-weight:500}
+[hidden]{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Quiz and games</h1>
+  <div class="tabs" role="group" aria-label="Choose a game">
+    <button type="button" data-t="quiz" aria-pressed="true">Quiz</button>
+    <button type="button" data-t="memory" aria-pressed="false">Memory match</button>
+  </div>
+  <section class="card" id="quiz"></section>
+  <section class="card" id="memory" hidden></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const get=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}};
+const put=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+/* ---------- Quiz: edit this list to make your own questions. First answer is the right one. ---------- */
+const QS=[
+ ['Which planet is the largest in our solar system?',['Jupiter','Saturn','Neptune','Earth']],
+ ['What is the chemical symbol for gold?',['Au','Ag','Gd','Go']],
+ ['What is the capital of Australia?',['Canberra','Sydney','Melbourne','Perth']],
+ ['How many sides does a hexagon have?',['6','5','7','8']],
+ ['Which is the largest ocean?',['Pacific','Atlantic','Indian','Arctic']],
+ ['Who painted the Mona Lisa?',['Leonardo da Vinci','Michelangelo','Raphael','Van Gogh']],
+ ['What is the fastest land animal?',['Cheetah','Lion','Horse','Greyhound']],
+ ['What is the smallest prime number?',['2','0','1','3']]
+];
+let qs,qi,score,picked;
+function startQuiz(){qs=shuffle([...QS]).map(q=>({t:q[0],a:q[1][0],o:shuffle([...q[1]])}));qi=0;score=0;picked=null;drawQuiz()}
+function drawQuiz(){
+  const el=$('quiz');
+  if(qi>=qs.length){
+    const best=Math.max(get('quiz:best',0),score);put('quiz:best',best);
+    el.innerHTML=`<div class="meta"><span>Finished</span><span>Best: ${best} of ${qs.length}</span></div><div class="score">${score} of ${qs.length}</div><p>${score===qs.length?'Perfect score!':score>=qs.length/2?'Nice work. Can you beat it?':'Give it another go.'}</p><button class="go" id="again" type="button">Play again</button>`;
+    $('again').onclick=startQuiz;return;
+  }
+  const q=qs[qi];
+  el.innerHTML=`<div class="meta"><span>Question ${qi+1} of ${qs.length}</span><span>Score: ${score}</span></div><div class="prog"><i style="width:${qi/qs.length*100}%"></i></div><h2>${q.t}</h2>${q.o.map((o,i)=>`<button type="button" class="opt" data-i="${i}">${o}</button>`).join('')}<p class="fb" id="fb" aria-live="polite"></p><button class="go" id="next" type="button" hidden>${qi+1===qs.length?'See score':'Next question'}</button>`;
+  el.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const ans=q.o[+b.dataset.i],right=ans===q.a;
+    if(right)score++;
+    el.querySelectorAll('.opt').forEach(x=>{x.disabled=true;if(q.o[+x.dataset.i]===q.a)x.classList.add('ok')});
+    if(!right)b.classList.add('bad');
+    $('fb').textContent=right?'Correct!':'Not quite. The answer is '+q.a+'.';
+    $('next').hidden=false;$('next').focus();
+  });
+  $('next').onclick=()=>{qi++;drawQuiz()};
+}
+
+/* ---------- Memory match ---------- */
+const FACES=['🍎','🚀','🎲','🐙','🌵','🎸','🍕','🦊'];
+let cards,up,moves,lock;
+function startMemory(){cards=shuffle([...FACES,...FACES]).map(f=>({f,done:false}));up=[];moves=0;lock=false;drawMemory()}
+function drawMemory(){
+  const won=cards.every(c=>c.done),best=get('memory:best',null);
+  $('memory').innerHTML=`<div class="meta"><span>Moves: ${moves}</span><span>${best?'Best: '+best+' moves':'No best yet'}</span></div><div class="grid">${cards.map((c,i)=>{const show=c.done||up.includes(i);return`<button type="button" class="cell${c.done?' done':up.includes(i)?' up':''}" data-i="${i}" aria-label="${show?c.f:'Hidden card '+(i+1)}">${c.f}</button>`}).join('')}</div><p class="msg" aria-live="polite">${won?'You matched them all in '+moves+' moves!':'Flip two cards to find a pair.'}</p><button class="go" id="reset" type="button">${won?'Play again':'Restart'}</button>`;
+  $('reset').onclick=startMemory;
+  if(won&&(!best||moves<best))put('memory:best',moves);
+}
+$('memory').addEventListener('click',e=>{
+  const b=e.target.closest('.cell');if(!b||lock)return;
+  const i=+b.dataset.i;if(cards[i].done||up.includes(i))return;
+  up.push(i);
+  if(up.length===2){
+    moves++;
+    const [a,c]=up;
+    if(cards[a].f===cards[c].f){cards[a].done=cards[c].done=true;up=[];drawMemory()}
+    else{lock=true;drawMemory();setTimeout(()=>{up=[];lock=false;drawMemory()},800)}
+  }else drawMemory();
+});
+
+/* ---------- Tabs ---------- */
+document.querySelector('.tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  $('quiz').hidden=b.dataset.t!=='quiz';$('memory').hidden=b.dataset.t!=='memory';
+});
+startQuiz();startMemory();
+</script>
+</body>
+</html>
